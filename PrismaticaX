@@ -26,9 +26,10 @@ local Window = Fluent:CreateWindow({
 local Tabs = {
     Visual = Window:AddTab({ Title = "Visual", Icon = "palette" }),
     Player = Window:AddTab({ Title = "Player", Icon = "user" }),
-    WallHack = Window:AddTab({ Title = "WallHack", Icon = "eye" }),
+    Wallhack = Window:AddTab({ Title = "Wallhack", Icon = "eye" }),
     Combat = Window:AddTab({ Title = "Combat", Icon = "sword" }),
     Utilities = Window:AddTab({ Title = "Utilities", Icon = "wrench" }),
+    Troll = Window:AddTab({ Title = "Troll", Icon = "smile" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
@@ -37,7 +38,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local player = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 
 -- Centralized effect management for JumpEffect only
 local EffectManager = {
@@ -184,9 +185,6 @@ local chinaHat
 local chinaHatConn
 local starTrailEmitter
 local starTrailConn
-local espPlayers = {}
-local nameEspPlayers = {}
-local distanceEspPlayers = {}
 local aimbotEnabled = false
 local aimbotFOV = 100
 local aimbotConnection
@@ -199,6 +197,15 @@ local aimbotMode = "Hold"
 local SpinbotEnabled = false
 local SpinbotSpeed = 10
 local spinbotConnection
+local TeamCheckEnabled = false
+local teamCheckConnection
+local WallCheckEnabled = false
+local wallCheckConnection
+local espTextSize = 25
+local espColor = Color3.fromRGB(255, 255, 255)
+local espRed = 255
+local espGreen = 255
+local espBlue = 255
 
 -- Bind mappings
 local bindMap = {
@@ -255,10 +262,29 @@ end
 -- Function to check if target is visible (Wall Check)
 local function IsVisible(localRoot, targetHead)
     if not localRoot or not targetHead then return false end
-    local ray = Ray.new(localRoot.Position, (targetHead.Position - localRoot.Position).Unit * aimbotFOV)
-    local ignoreList = {player.Character}
+    local ray = Ray.new(localRoot.Position, (targetHead.Position - localRoot.Position).Unit * 1000)
+    local ignoreList = {LocalPlayer.Character}
     local hit, _ = Workspace:FindPartOnRayWithIgnoreList(ray, ignoreList)
     return hit == nil or hit:IsDescendantOf(targetHead.Parent)
+end
+
+-- Function to update ESP color
+local function UpdateESPColor()
+    espColor = Color3.fromRGB(espRed, espGreen, espBlue)
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if player.Character:FindFirstChild("ESPHighlight") then
+                player.Character.ESPHighlight.FillColor = espColor
+                player.Character.ESPHighlight.OutlineColor = espColor
+            end
+            if player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("NameTag") then
+                player.Character.Head.NameTag.TagLabel.TextColor3 = espColor
+            end
+            if player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart:FindFirstChild("DistanceTag") then
+                player.Character.HumanoidRootPart.DistanceTag.TagLabel.TextColor3 = espColor
+            end
+        end
+    end
 end
 
 -- Capture original WalkSpeed and JumpPower
@@ -274,15 +300,15 @@ local function CaptureOriginals(char)
     end
 end
 
-if player.Character then
-    CaptureOriginals(player.Character)
+if LocalPlayer.Character then
+    CaptureOriginals(LocalPlayer.Character)
 end
 
-player.CharacterAdded:Connect(CaptureOriginals)
+LocalPlayer.CharacterAdded:Connect(CaptureOriginals)
 
 -- Jump Effect
-EffectManager:RegisterEffect("JumpEffect", function()
-    local char = player.Character or player.CharacterAdded:Wait()
+EffectManager:RegisterEffect("Jump effect", function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local humanoid = char:WaitForChild("Humanoid", 10)
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not humanoid or not root then return end
@@ -334,8 +360,8 @@ end)
 local VisualEffects = {}
 
 function VisualEffects:FireAura()
-    self:ClearEffectByName("FireAura")
-    local char = player.Character or player.CharacterAdded:Wait()
+    self:ClearEffectByName("Fire aura")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
     
@@ -349,8 +375,8 @@ function VisualEffects:FireAura()
 end
 
 function VisualEffects:SmokeTrail()
-    self:ClearEffectByName("SmokeTrail")
-    local char = player.Character or player.CharacterAdded:Wait()
+    self:ClearEffectByName("Smoke trail")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
     
@@ -364,8 +390,8 @@ function VisualEffects:SmokeTrail()
 end
 
 function VisualEffects:SparkleBody()
-    self:ClearEffectByName("BodySparkles")
-    local char = player.Character or player.CharacterAdded:Wait()
+    self:ClearEffectByName("Body sparkles")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
     
@@ -376,8 +402,8 @@ function VisualEffects:SparkleBody()
 end
 
 function VisualEffects:ColorShift()
-    self:ClearEffectByName("ColorShift")
-    local char = player.Character or player.CharacterAdded:Wait()
+    self:ClearEffectByName("Color shift")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     if not char then return end
     
     local highlight = Instance.new("Highlight")
@@ -400,8 +426,8 @@ function VisualEffects:ColorShift()
 end
 
 function VisualEffects:NeonGlow()
-    self:ClearEffectByName("NeonGlow")
-    local char = player.Character or player.CharacterAdded:Wait()
+    self:ClearEffectByName("Neon glow")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     if not char then return end
     
     local highlight = Instance.new("Highlight")
@@ -421,8 +447,8 @@ function VisualEffects:NeonGlow()
 end
 
 function VisualEffects:StarTrail()
-    self:ClearEffectByName("StarTrail")
-    local char = player.Character or player.CharacterAdded:Wait()
+    self:ClearEffectByName("Star trail")
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
     
@@ -449,7 +475,7 @@ function VisualEffects:StarTrail()
 end
 
 function VisualEffects:ClearEffectByName(name)
-    local char = player.Character
+    local char = LocalPlayer.Character
     if char then
         for _, effect in pairs(char:GetDescendants()) do
             if effect.Name == name then
@@ -461,336 +487,223 @@ end
 
 -- Highlight ESP Module
 local HighlightESP = {}
-local espPlayers = {}
-local espConnection
+local highlightESPConnection
 
-function HighlightESP:CreateESP(plr, char)
-    if plr == player then return end
-    if not char then return end
-    if char:FindFirstChild("ESP_Highlight") then
-        local existingHighlight = char:FindFirstChild("ESP_Highlight")
-        existingHighlight.Adornee = char
-        espPlayers[plr] = { Highlight = existingHighlight }
-        return
+function HighlightESP:CreateHighlight(player)
+    local character = player.Character
+    if character then
+        local highlight = character:FindFirstChild("ESPHighlight")
+        if not highlight then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "ESPHighlight"
+            highlight.FillColor = espColor
+            highlight.OutlineColor = espColor
+            highlight.FillTransparency = 0.6
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = character
+            highlight.Parent = character
+        end
     end
-
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
-    highlight.Adornee = char
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.5
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.OutlineTransparency = 0
-    highlight.Parent = char
-    espPlayers[plr] = { Highlight = highlight }
 end
 
 function HighlightESP:EnableESP()
-    if espConnection then return end
+    if highlightESPConnection then return end
 
-    local function OnPlayer(plr)
-        if plr == player then return end
-        local function OnCharacter(char)
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if char and humanoid and humanoid.Health > 0 then
-                HighlightESP:CreateESP(plr, char)
-            end
-        end
-        plr.CharacterAdded:Connect(OnCharacter)
-        if plr.Character then
-            OnCharacter(plr.Character)
-        end
-    end
-
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if espPlayers[plr] and espPlayers[plr].Highlight then
-            pcall(function() espPlayers[plr].Highlight:Destroy() end)
-        end
-        espPlayers[plr] = nil
-        OnPlayer(plr)
-    end
-
-    espConnection = Players.PlayerAdded:Connect(OnPlayer)
-
-    local function CheckCharacters()
-        for plr, data in pairs(espPlayers) do
-            if not plr.Parent or not plr.Character or not data.Highlight or not data.Highlight.Parent then
-                espPlayers[plr] = nil
-            else
-                local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health <= 0 then
-                    pcall(function() data.Highlight:Destroy() end)
-                    espPlayers[plr] = nil
-                end
+    local function SetupHighlight(player)
+        if player ~= LocalPlayer then
+            player.CharacterAdded:Connect(function(character)
+                task.wait(0.5)
+                HighlightESP:CreateHighlight(player)
+            end)
+            if player.Character then
+                HighlightESP:CreateHighlight(player)
             end
         end
     end
 
-    local checkConnection
-    checkConnection = RunService.Heartbeat:Connect(function()
-        if not espConnection then
-            checkConnection:Disconnect()
-            return
-        end
-        CheckCharacters()
-    end)
+    for _, player in ipairs(Players:GetPlayers()) do
+        SetupHighlight(player)
+    end
+
+    highlightESPConnection = Players.PlayerAdded:Connect(SetupHighlight)
 end
 
 function HighlightESP:DisableESP()
-    if espConnection then
-        pcall(function() espConnection:Disconnect() end)
-        espConnection = nil
+    if highlightESPConnection then
+        pcall(function() highlightESPConnection:Disconnect() end)
+        highlightESPConnection = nil
     end
-    for plr, data in pairs(espPlayers) do
-        if data.Highlight then
-            pcall(function() data.Highlight:Destroy() end)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            local highlight = player.Character:FindFirstChild("ESPHighlight")
+            if highlight then
+                pcall(function() highlight:Destroy() end)
+            end
         end
     end
-    espPlayers = {}
 end
 
 -- Name ESP Module
 local NameESP = {}
-local nameEspPlayers = {}
-local nameEspConnection
+local nameESPConnection
 
-function NameESP:CreateNameESP(plr, char)
-    if plr == player then return end
-    if not char then return end
-    local head = char:FindFirstChild("Head")
-    if not head then return end
-    if head:FindFirstChild("NameESP") then
-        local existingGui = head:FindFirstChild("NameESP")
-        existingGui.Adornee = head
-        nameEspPlayers[plr] = { BillboardGui = existingGui }
-        return
-    end
+function NameESP:CreateNameTag(player)
+    local character = player.Character
+    if character then
+        local head = character:WaitForChild("Head", 10)
+        if head then
+            local billboard = head:FindFirstChild("NameTag")
+            if not billboard then
+                billboard = Instance.new("BillboardGui")
+                billboard.Name = "NameTag"
+                billboard.Adornee = head
+                billboard.Size = UDim2.new(0, 130, 0, espTextSize)
+                billboard.StudsOffset = Vector3.new(0, 2, 0)
+                billboard.AlwaysOnTop = true
+                billboard.Parent = head
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "NameESP"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 100, 0, 20)
-    billboard.StudsOffset = Vector3.new(0, 2, 0)
-    billboard.AlwaysOnTop = true
-    billboard.LightInfluence = 0
-    billboard.MaxDistance = math.huge
-    billboard.Parent = head
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = plr.Name
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textLabel.TextStrokeTransparency = 0.5
-    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    textLabel.TextSize = 14
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.Parent = billboard
-
-    nameEspPlayers[plr] = { BillboardGui = billboard }
-end
-
-function NameESP:EnableNameESP()
-    if nameEspConnection then return end
-
-    local function OnPlayer(plr)
-        if plr == player then return end
-        local function OnCharacter(char)
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if char and humanoid and humanoid.Health > 0 then
-                NameESP:CreateNameESP(plr, char)
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Name = "TagLabel"
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.TextColor3 = espColor
+                textLabel.Font = Enum.Font.Cartoon
+                textLabel.TextScaled = true
+                textLabel.TextStrokeTransparency = 0.6
+                textLabel.Text = player.Name
+                textLabel.Parent = billboard
             end
         end
-        plr.CharacterAdded:Connect(OnCharacter)
-        if plr.Character then
-            OnCharacter(plr.Character)
-        end
     end
+end
 
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if nameEspPlayers[plr] and nameEspPlayers[plr].BillboardGui then
-            pcall(function() nameEspPlayers[plr].BillboardGui:Destroy() end)
-        end
-        nameEspPlayers[plr] = nil
-        OnPlayer(plr)
-    end
+function NameESP:EnableESP()
+    if nameESPConnection then return end
 
-    nameEspConnection = Players.PlayerAdded:Connect(OnPlayer)
-
-    local function CheckCharacters()
-        for plr, data in pairs(nameEspPlayers) do
-            if not plr.Parent or not plr.Character or not data.BillboardGui or not data.BillboardGui.Parent then
-                nameEspPlayers[plr] = nil
-            else
-                local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health <= 0 then
-                    pcall(function() data.BillboardGui:Destroy() end)
-                    nameEspPlayers[plr] = nil
-                end
+    local function SetupName(player)
+        if player ~= LocalPlayer then
+            player.CharacterAdded:Connect(function(character)
+                task.wait(0.5)
+                NameESP:CreateNameTag(player)
+            end)
+            if player.Character then
+                NameESP:CreateNameTag(player)
             end
         end
     end
 
-    local checkConnection
-    checkConnection = RunService.Heartbeat:Connect(function()
-        if not nameEspConnection then
-            checkConnection:Disconnect()
-            return
-        end
-        CheckCharacters()
-    end)
+    for _, player in ipairs(Players:GetPlayers()) do
+        SetupName(player)
+    end
+
+    nameESPConnection = Players.PlayerAdded:Connect(SetupName)
 end
 
-function NameESP:DisableNameESP()
-    if nameEspConnection then
-        pcall(function() nameEspConnection:Disconnect() end)
-        nameEspConnection = nil
+function NameESP:DisableESP()
+    if nameESPConnection then
+        pcall(function() nameESPConnection:Disconnect() end)
+        nameESPConnection = nil
     end
-    for plr, data in pairs(nameEspPlayers) do
-        if data.BillboardGui then
-            pcall(function() data.BillboardGui:Destroy() end)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("Head") then
+            local nameTag = player.Character.Head:FindFirstChild("NameTag")
+            if nameTag then
+                pcall(function() nameTag:Destroy() end)
+            end
         end
     end
-    nameEspPlayers = {}
 end
 
 -- Distance ESP Module
 local DistanceESP = {}
-local distanceEspPlayers = {}
-local distanceEspConnection
+local distanceESPConnection
 
-function DistanceESP:CreateDistanceESP(plr, char)
-    if plr == player then return end
-    if not char then return end
-    local head = char:FindFirstChild("Head")
-    if not head then return end
-    if head:FindFirstChild("DistanceESP") then
-        local existingGui = head:FindFirstChild("DistanceESP")
-        existingGui.Adornee = head
-        distanceEspPlayers[plr] = { BillboardGui = existingGui }
-        return
-    end
+function DistanceESP:CreateDistanceTag(player)
+    local character = player.Character
+    if character then
+        local root = character:WaitForChild("HumanoidRootPart", 10)
+        if root then
+            local billboard = root:FindFirstChild("DistanceTag")
+            if not billboard then
+                billboard = Instance.new("BillboardGui")
+                billboard.Name = "DistanceTag"
+                billboard.Adornee = root
+                billboard.Size = UDim2.new(0, 130, 0, espTextSize)
+                billboard.StudsOffset = Vector3.new(0, -3.5, 0)
+                billboard.AlwaysOnTop = true
+                billboard.Parent = root
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "DistanceESP"
-    billboard.Adornee = head
-    billboard.Size = UDim2.new(0, 100, 0, 20)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    billboard.LightInfluence = 0
-    billboard.MaxDistance = math.huge
-    billboard.Parent = head
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textLabel.TextStrokeTransparency = 0
-    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    textLabel.TextSize = 14
-    textLabel.Font = Enum.Font.SourceSansBold
-    textLabel.Text = "0"
-    textLabel.Parent = billboard
-
-    local updateConn
-    updateConn = RunService.RenderStepped:Connect(function()
-        if not billboard or not billboard.Parent or not plr.Character or not player.Character then
-            if updateConn then
-                updateConn:Disconnect()
+                local textLabel = Instance.new("TextLabel")
+                textLabel.Name = "TagLabel"
+                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                textLabel.BackgroundTransparency = 1
+                textLabel.TextColor3 = espColor
+                textLabel.Font = Enum.Font.Cartoon
+                textLabel.TextScaled = true
+                textLabel.TextStrokeTransparency = 0.6
+                textLabel.Text = ""
+                textLabel.Parent = billboard
             end
-            return
         end
-        local localRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        local targetRoot = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-        if localRoot and targetRoot then
-            local dist = (localRoot.Position - targetRoot.Position).Magnitude
-            textLabel.Text = tostring(math.floor(dist))
-        else
-            textLabel.Text = "0"
-        end
-    end)
-    table.insert(EffectManager.Connections, updateConn)
-
-    distanceEspPlayers[plr] = { BillboardGui = billboard, Connection = updateConn }
+    end
 end
 
-function DistanceESP:EnableDistanceESP()
-    if distanceEspConnection then return end
-
-    local function OnPlayer(plr)
-        if plr == player then return end
-        local function OnCharacter(char)
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if char and humanoid and humanoid.Health > 0 then
-                DistanceESP:CreateDistanceESP(plr, char)
-            end
-        end
-        plr.CharacterAdded:Connect(OnCharacter)
-        if plr.Character then
-            OnCharacter(plr.Character)
-        end
+function DistanceESP:UpdateDistanceTag(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart:FindFirstChild("DistanceTag") then
+        local tag = player.Character.HumanoidRootPart.DistanceTag.TagLabel
+        local distance = (LocalPlayer.Character and LocalPlayer.Character.PrimaryPart and player.Character.PrimaryPart and (LocalPlayer.Character.PrimaryPart.Position - player.Character.PrimaryPart.Position).Magnitude) or 0
+        tag.Text = string.format("%.0f", distance) .. "m"
     end
+end
 
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if distanceEspPlayers[plr] and distanceEspPlayers[plr].BillboardGui then
-            pcall(function() distanceEspPlayers[plr].BillboardGui:Destroy() end)
-            if distanceEspPlayers[plr].Connection then
-                pcall(function() distanceEspPlayers[plr].Connection:Disconnect() end)
-            end
-        end
-        distanceEspPlayers[plr] = nil
-        OnPlayer(plr)
-    end
+function DistanceESP:EnableESP()
+    if distanceESPConnection then return end
 
-    distanceEspConnection = Players.PlayerAdded:Connect(OnPlayer)
-
-    local function CheckCharacters()
-        for plr, data in pairs(distanceEspPlayers) do
-            if not plr.Parent or not plr.Character or not data.BillboardGui or not data.BillboardGui.Parent then
-                if data.Connection then
-                    pcall(function() data.Connection:Disconnect() end)
-                end
-                distanceEspPlayers[plr] = nil
-            else
-                local humanoid = plr.Character:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health <= 0 then
-                    if data.BillboardGui then
-                        pcall(function() data.BillboardGui:Destroy() end)
-                    end
-                    if data.Connection then
-                        pcall(function() data.Connection:Disconnect() end)
-                    end
-                    distanceEspPlayers[plr] = nil
-                end
+    local function SetupDistance(player)
+        if player ~= LocalPlayer then
+            player.CharacterAdded:Connect(function(character)
+                task.wait(0.5)
+                DistanceESP:CreateDistanceTag(player)
+            end)
+            if player.Character then
+                DistanceESP:CreateDistanceTag(player)
             end
         end
     end
 
-    local checkConnection
-    checkConnection = RunService.Heartbeat:Connect(function()
-        if not distanceEspConnection then
-            checkConnection:Disconnect()
+    for _, player in ipairs(Players:GetPlayers()) do
+        SetupDistance(player)
+    end
+
+    distanceESPConnection = Players.PlayerAdded:Connect(SetupDistance)
+
+    local updateConnection
+    updateConnection = RunService.Heartbeat:Connect(function()
+        if not distanceESPConnection then
+            updateConnection:Disconnect()
             return
         end
-        CheckCharacters()
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                DistanceESP:UpdateDistanceTag(player)
+            end
+        end
     end)
 end
 
-function DistanceESP:DisableDistanceESP()
-    if distanceEspConnection then
-        pcall(function() distanceEspConnection:Disconnect() end)
-        distanceEspConnection = nil
+function DistanceESP:DisableESP()
+    if distanceESPConnection then
+        pcall(function() distanceESPConnection:Disconnect() end)
+        distanceESPConnection = nil
     end
-    for plr, data in pairs(distanceEspPlayers) do
-        if data.BillboardGui then
-            pcall(function() data.BillboardGui:Destroy() end)
-        end
-        if data.Connection then
-            pcall(function() data.Connection:Disconnect() end)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distanceTag = player.Character.HumanoidRootPart:FindFirstChild("DistanceTag")
+            if distanceTag then
+                pcall(function() distanceTag:Destroy() end)
+            end
         end
     end
-    distanceEspPlayers = {}
 end
 
 -- Aimbot Module
@@ -803,7 +716,7 @@ function Aimbot:ShowFOV()
     fovCircle = Instance.new("BillboardGui")
     fovCircle.Name = "AimbotFOV"
     fovCircle.Size = UDim2.new(0, aimbotFOV * 2, 0, aimbotFOV * 2)
-    fovCircle.Adornee = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    fovCircle.Adornee = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     fovCircle.StudsOffset = Vector3.new(0, 0, -aimbotFOV)
     fovCircle.AlwaysOnTop = true
     fovCircle.Parent = Workspace
@@ -826,7 +739,7 @@ function Aimbot:ShowFOV()
     
     if not fovConnection then
         fovConnection = RunService.RenderStepped:Connect(function()
-            local localChar = player.Character
+            local localChar = LocalPlayer.Character
             if not localChar then
                 Aimbot:HideFOV()
                 return
@@ -870,7 +783,7 @@ function Aimbot:Enable()
             return
         end
         
-        local localChar = player.Character
+        local localChar = LocalPlayer.Character
         if not localChar then return end
         local localRoot = localChar:FindFirstChild("HumanoidRootPart")
         if not localRoot then return end
@@ -886,13 +799,13 @@ function Aimbot:Enable()
             local smallestAngle = math.rad(aimbotFOV / 2)
             
             for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= player and plr.Character and (not plr.Team or not player.Team or plr.Team ~= player.Team) then
+                if plr ~= LocalPlayer then
                     local char = plr.Character
-                    local root = char:FindFirstChild("HumanoidRootPart")
-                    local head = char:FindFirstChild("Head")
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    local head = char and char:FindFirstChild("Head")
                     if root and head then
                         local distance = (localRoot.Position - root.Position).Magnitude
-                        if distance <= aimbotFOV and IsVisible(localRoot, head) then
+                        if distance <= aimbotFOV then
                             local screenPoint, onScreen = camera:WorldToScreenPoint(head.Position)
                             if onScreen then
                                 local directionToTarget = (head.Position - camera.CFrame.Position).Unit
@@ -945,7 +858,7 @@ function Spinbot:Enable()
             return
         end
         
-        local char = player.Character
+        local char = LocalPlayer.Character
         if not char then return end
         local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
@@ -961,16 +874,137 @@ function Spinbot:Disable()
     end
 end
 
+-- TeamCheck Module
+local TeamCheck = {}
+
+function TeamCheck:Enable()
+    if teamCheckConnection then return end
+    
+    teamCheckConnection = RunService.RenderStepped:Connect(function()
+        if not TeamCheckEnabled then
+            if teamCheckConnection then
+                teamCheckConnection:Disconnect()
+                teamCheckConnection = nil
+            end
+            return
+        end
+        
+        local localChar = LocalPlayer.Character
+        if not localChar then return end
+        local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+        if not localRoot then return end
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
+                local char = plr.Character
+                if char then
+                    local highlight = char:FindFirstChild("TeamCheckHighlight")
+                    if not highlight then
+                        highlight = Instance.new("Highlight")
+                        highlight.Name = "TeamCheckHighlight"
+                        highlight.Adornee = char
+                        highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                        highlight.FillTransparency = 0.7
+                        highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = char
+                    end
+                end
+            end
+        end
+    end)
+end
+
+function TeamCheck:Disable()
+    if teamCheckConnection then
+        pcall(function() teamCheckConnection:Disconnect() end)
+        teamCheckConnection = nil
+    end
+    for _, plr in pairs(Players:GetPlayers()) do
+        local char = plr.Character
+        if char then
+            local highlight = char:FindFirstChild("TeamCheckHighlight")
+            if highlight then
+                pcall(function() highlight:Destroy() end)
+            end
+        end
+    end
+end
+
+-- WallCheck Module
+local WallCheck = {}
+
+function WallCheck:Enable()
+    if wallCheckConnection then return end
+    
+    wallCheckConnection = RunService.RenderStepped:Connect(function()
+        if not WallCheckEnabled then
+            if wallCheckConnection then
+                wallCheckConnection:Disconnect()
+                wallCheckConnection = nil
+            end
+            return
+        end
+        
+        local localChar = LocalPlayer.Character
+        if not localChar then return end
+        local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+        if not localRoot then return end
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                local char = plr.Character
+                local head = char and char:FindFirstChild("Head")
+                if head then
+                    local highlight = char:FindFirstChild("WallCheckHighlight")
+                    if IsVisible(localRoot, head) then
+                        if not highlight then
+                            highlight = Instance.new("Highlight")
+                            highlight.Name = "WallCheckHighlight"
+                            highlight.Adornee = char
+                            highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                            highlight.FillTransparency = 0.7
+                            highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+                            highlight.OutlineTransparency = 0
+                            highlight.Parent = char
+                        end
+                    else
+                        if highlight then
+                            pcall(function() highlight:Destroy() end)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
+function WallCheck:Disable()
+    if wallCheckConnection then
+        pcall(function() wallCheckConnection:Disconnect() end)
+        wallCheckConnection = nil
+    end
+    for _, plr in pairs(Players:GetPlayers()) do
+        local char = plr.Character
+        if char then
+            local highlight = char:FindFirstChild("WallCheckHighlight")
+            if highlight then
+                pcall(function() highlight:Destroy() end)
+            end
+        end
+    end
+end
+
 -- Cleanup function to disable all features
 local function CleanupAll()
     -- Disable all visual effects
     EffectManager:ClearVisual()
-    VisualEffects:ClearEffectByName("FireAura")
-    VisualEffects:ClearEffectByName("SmokeTrail")
-    VisualEffects:ClearEffectByName("BodySparkles")
-    VisualEffects:ClearEffectByName("ColorShift")
-    VisualEffects:ClearEffectByName("NeonGlow")
-    VisualEffects:ClearEffectByName("StarTrail")
+    VisualEffects:ClearEffectByName("Fire aura")
+    VisualEffects:ClearEffectByName("Smoke trail")
+    VisualEffects:ClearEffectByName("Body sparkles")
+    VisualEffects:ClearEffectByName("Color shift")
+    VisualEffects:ClearEffectByName("Neon glow")
+    VisualEffects:ClearEffectByName("Star trail")
     
     -- Disable all toggles
     for name, toggle in pairs(toggles) do
@@ -1022,11 +1056,19 @@ local function CleanupAll()
         pcall(function() spinbotConnection:Disconnect() end)
         spinbotConnection = nil
     end
+    if teamCheckConnection then
+        pcall(function() teamCheckConnection:Disconnect() end)
+        teamCheckConnection = nil
+    end
+    if wallCheckConnection then
+        pcall(function() wallCheckConnection:Disconnect() end)
+        wallCheckConnection = nil
+    end
     for _, conn in pairs(uiGradientConnections) do
         pcall(function() conn:Disconnect() end)
     end
     uiGradientConnections = {}
-    
+
     -- Clear objects
     if chinaHat then
         pcall(function() chinaHat:Destroy() end)
@@ -1043,18 +1085,20 @@ local function CleanupAll()
     trails = {}
     rainbow_updaters = {}
     
-    -- Disable ESPs
+    -- Disable ESP modules
     HighlightESP:DisableESP()
-    NameESP:DisableNameESP()
-    DistanceESP:DisableDistanceESP()
+    NameESP:DisableESP()
+    DistanceESP:DisableESP()
     
-    -- Disable Aimbot and Spinbot
+    -- Disable Aimbot, Spinbot, TeamCheck, and WallCheck
     Aimbot:Disable()
     Aimbot:HideFOV()
     Spinbot:Disable()
+    TeamCheck:Disable()
+    WallCheck:Disable()
     
     -- Restore character properties
-    local char = player.Character
+    local char = LocalPlayer.Character
     if char then
         local humanoid = char:FindFirstChild("Humanoid")
         if humanoid then
@@ -1070,7 +1114,7 @@ local function CleanupAll()
             if part:IsA("BasePart") then
                 part.CanCollide = true
             end
-            if part.Name == "FireAura" or part.Name == "SmokeTrail" or part.Name == "BodySparkles" or part.Name == "ColorShift" or part.Name == "RainbowTrail" or part.Name == "TrailAttachment0" or part.Name == "TrailAttachment1" or part.Name == "NeonGlow" or part.Name == "StarTrail" or part:IsA("ParticleEmitter") then
+            if part.Name == "FireAura" or part.Name == "SmokeTrail" or part.Name == "BodySparkles" or part.Name == "ColorShift" or part.Name == "RainbowTrail" or part.Name == "TrailAttachment0" or part.Name == "TrailAttachment1" or part.Name == "NeonGlow" or part.Name == "StarTrail" or part.Name == "TeamCheckHighlight" or part.Name == "WallCheckHighlight" or part:IsA("ParticleEmitter") then
                 pcall(function() part:Destroy() end)
             end
         end
@@ -1084,15 +1128,36 @@ local function CleanupAll()
     aimbotActive = false
     lockedTarget = nil
     SpinbotEnabled = false
+    TeamCheckEnabled = false
+    WallCheckEnabled = false
+    espTextSize = 25
+    espColor = Color3.fromRGB(255, 255, 255)
+    espRed = 255
+    espGreen = 255
+    espBlue = 255
 end
 
 -- UI Setup
 local VisualSection = Tabs.Visual:AddSection("Visual")
 local ClearSection = Tabs.Visual:AddSection("Clear")
 local PlayerSection = Tabs.Player:AddSection("Player")
-local WallHackSection = Tabs.WallHack:AddSection("WallHack")
+local PlayerESPSection = Tabs.Wallhack:AddSection("Player ESP")
+local SizeSection = Tabs.Wallhack:AddSection("Size")
+local SettingsColorESPSection = Tabs.Wallhack:AddSection("Settings color ESP")
 local CombatSection = Tabs.Combat:AddSection("Combat")
+local TrollSection = Tabs.Troll:AddSection("Troll")
 local SettingsSection = Tabs.Settings:AddSection("Settings")
+
+-- Troll GUI button
+TrollSection:AddButton({
+    Title = "Troll GUI",
+    Description = "Load Troll GUI script",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Fling-Gui-Op-47914"))()
+        end)
+    end
+})
 
 -- Combat toggles, sliders, and dropdowns
 local toggles = {}
@@ -1111,7 +1176,7 @@ toggles.Aimbot:OnChanged(function(val)
     end
 end)
 
-CombatSection:AddDropdown("Aimbotbind", {
+CombatSection:AddDropdown("AimbotBind", {
     Title = "Aimbot bind",
     Description = "Select bind for aimbot",
     Values = {
@@ -1126,7 +1191,7 @@ CombatSection:AddDropdown("Aimbotbind", {
     end
 })
 
-CombatSection:AddDropdown("Aimbotmode", {
+CombatSection:AddDropdown("AimbotMode", {
     Title = "Aimbot mode",
     Description = "Select aimbot mode",
     Values = {"Hold", "Toggle"},
@@ -1178,6 +1243,26 @@ CombatSection:AddSlider("SpinbotSpeed", {
     end
 })
 
+toggles.TeamCheck = CombatSection:AddToggle("TeamCheck", {Title = "Team check", Default = false})
+toggles.TeamCheck:OnChanged(function(val)
+    TeamCheckEnabled = val
+    if val then
+        TeamCheck:Enable()
+    else
+        TeamCheck:Disable()
+    end
+end)
+
+toggles.WallCheck = CombatSection:AddToggle("WallCheck", {Title = "Wall check", Default = false})
+toggles.WallCheck:OnChanged(function(val)
+    WallCheckEnabled = val
+    if val then
+        WallCheck:Enable()
+    else
+        WallCheck:Disable()
+    end
+end)
+
 -- Aimbot bind handlers
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
     if gameProcessedEvent then return end
@@ -1206,8 +1291,8 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- WallHack toggles
-toggles.HighlightESP = WallHackSection:AddToggle("HighlightESP", {Title = "Highlight ESP", Default = false})
+-- Wallhack toggles
+toggles.HighlightESP = PlayerESPSection:AddToggle("HighlightESP", {Title = "Highlight ESP", Default = false})
 toggles.HighlightESP:OnChanged(function(val)
     if val then
         HighlightESP:EnableESP()
@@ -1216,23 +1301,86 @@ toggles.HighlightESP:OnChanged(function(val)
     end
 end)
 
-toggles.NameESP = WallHackSection:AddToggle("NameESP", {Title = "Name ESP", Default = false})
+toggles.NameESP = PlayerESPSection:AddToggle("NameESP", {Title = "Name ESP", Default = false})
 toggles.NameESP:OnChanged(function(val)
     if val then
-        NameESP:EnableNameESP()
+        NameESP:EnableESP()
     else
-        NameESP:DisableNameESP()
+        NameESP:DisableESP()
     end
 end)
 
-toggles.DistanceESP = WallHackSection:AddToggle("DistanceESP", {Title = "Distance ESP", Default = false})
+toggles.DistanceESP = PlayerESPSection:AddToggle("DistanceESP", {Title = "Distance ESP", Default = false})
 toggles.DistanceESP:OnChanged(function(val)
     if val then
-        DistanceESP:EnableDistanceESP()
+        DistanceESP:EnableESP()
     else
-        DistanceESP:DisableDistanceESP()
+        DistanceESP:DisableESP()
     end
 end)
+
+-- Size ESP
+SizeSection:AddSlider("SizeESP", {
+    Title = "Size ESP",
+    Description = "Set ESP text size (10-50)",
+    Default = 25,
+    Min = 10,
+    Max = 50,
+    Rounding = 0,
+    Callback = function(val)
+        espTextSize = val
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                if player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("NameTag") then
+                    player.Character.Head.NameTag.Size = UDim2.new(0, 130, 0, espTextSize)
+                end
+                if player.Character:FindFirstChild("HumanoidRootPart") and player.Character.HumanoidRootPart:FindFirstChild("DistanceTag") then
+                    player.Character.HumanoidRootPart.DistanceTag.Size = UDim2.new(0, 130, 0, espTextSize)
+                end
+            end
+        end
+    end
+})
+
+-- Settings color ESP
+SettingsColorESPSection:AddSlider("RedESP", {
+    Title = "Red ESP",
+    Description = "Set red color component (0-255)",
+    Default = 255,
+    Min = 0,
+    Max = 255,
+    Rounding = 0,
+    Callback = function(val)
+        espRed = val
+        UpdateESPColor()
+    end
+})
+
+SettingsColorESPSection:AddSlider("GreenESP", {
+    Title = "Green ESP",
+    Description = "Set green color component (0-255)",
+    Default = 255,
+    Min = 0,
+    Max = 255,
+    Rounding = 0,
+    Callback = function(val)
+        espGreen = val
+        UpdateESPColor()
+    end
+})
+
+SettingsColorESPSection:AddSlider("BlueESP", {
+    Title = "Blue ESP",
+    Description = "Set blue color component (0-255)",
+    Default = 255,
+    Min = 0,
+    Max = 255,
+    Rounding = 0,
+    Callback = function(val)
+        espBlue = val
+        UpdateESPColor()
+    end
+})
 
 -- Visual effects toggles
 toggles.ChinaHat = VisualSection:AddToggle("ChinaHat", {Title = "China hat", Default = false})
@@ -1285,13 +1433,13 @@ toggles.ChinaHat:OnChanged(function(val)
             StartRainbowLoop()
         end
         
-        local char = player.Character
+        local char = LocalPlayer.Character
         if char then
             AddChinaHat(char)
         end
         
         if not chinaHatConn then
-            chinaHatConn = player.CharacterAdded:Connect(function(newChar)
+            chinaHatConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
                 if toggles.ChinaHat.Value then
                     task.wait(1)
                     AddChinaHat(newChar)
@@ -1350,13 +1498,13 @@ toggles.Trails:OnChanged(function(val)
             end
         end
         
-        local char = player.Character
+        local char = LocalPlayer.Character
         if char then
             AddTrails(char)
         end
         
         if not trailsCharConn then
-            trailsCharConn = player.CharacterAdded:Connect(function(newChar)
+            trailsCharConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
                 if toggles.Trails.Value then
                     task.wait(1)
                     AddTrails(newChar)
@@ -1390,7 +1538,7 @@ toggles.Trails:OnChanged(function(val)
             trailsCharConn:Disconnect()
             trailsCharConn = nil
         end
-        local char = player.Character
+        local char = LocalPlayer.Character
         if char then
             for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
@@ -1410,7 +1558,7 @@ end)
 
 toggles.JumpEffect = VisualSection:AddToggle("JumpEffect", {Title = "Jump effect", Default = false})
 toggles.JumpEffect:OnChanged(function(val)
-    if val then EffectManager:EnableEffect("JumpEffect") else EffectManager:DisableEffect("JumpEffect") end
+    if val then EffectManager:EnableEffect("Jump effect") else EffectManager:DisableEffect("Jump effect") end
 end)
 
 toggles.Particles = VisualSection:AddToggle("Particles", {Title = "Floating particles", Default = false})
@@ -1434,13 +1582,13 @@ toggles.Particles:OnChanged(function(val)
             particleEmitter.Enabled = true
         end
         
-        local char = player.Character
+        local char = LocalPlayer.Character
         if char then
             AddParticles(char)
         end
         
         if not particlesCharConn then
-            particlesCharConn = player.CharacterAdded:Connect(function(newChar)
+            particlesCharConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
                 if toggles.Particles.Value then
                     task.wait(1)
                     AddParticles(newChar)
@@ -1479,12 +1627,12 @@ toggles.NeonGlow = VisualSection:AddToggle("NeonGlow", {Title = "Neon glow", Def
 toggles.NeonGlow:OnChanged(function(val)
     if val then
         VisualEffects:NeonGlow()
-        local char = player.Character
+        local char = LocalPlayer.Character
         if char then
             VisualEffects:NeonGlow()
         end
         if not starTrailConn then
-            starTrailConn = player.CharacterAdded:Connect(function(newChar)
+            starTrailConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
                 if toggles.NeonGlow.Value then
                     task.wait(1)
                     VisualEffects:NeonGlow()
@@ -1496,7 +1644,7 @@ toggles.NeonGlow:OnChanged(function(val)
             starTrailConn:Disconnect()
             starTrailConn = nil
         end
-        VisualEffects:ClearEffectByName("NeonGlow")
+        VisualEffects:ClearEffectByName("Neon glow")
         rainbow_updaters["NeonGlow"] = nil
         StopRainbowLoop()
     end
@@ -1506,12 +1654,12 @@ toggles.StarTrail = VisualSection:AddToggle("StarTrail", {Title = "Star trail", 
 toggles.StarTrail:OnChanged(function(val)
     if val then
         VisualEffects:StarTrail()
-        local char = player.Character
+        local char = LocalPlayer.Character
         if char then
             VisualEffects:StarTrail()
         end
         if not starTrailConn then
-            starTrailConn = player.CharacterAdded:Connect(function(newChar)
+            starTrailConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
                 if toggles.StarTrail.Value then
                     task.wait(1)
                     VisualEffects:StarTrail()
@@ -1523,7 +1671,7 @@ toggles.StarTrail:OnChanged(function(val)
             starTrailConn:Disconnect()
             starTrailConn = nil
         end
-        VisualEffects:ClearEffectByName("StarTrail")
+        VisualEffects:ClearEffectByName("Star trail")
         if starTrailEmitter then
             pcall(function() starTrailEmitter:Destroy() end)
             starTrailEmitter = nil
@@ -1535,22 +1683,22 @@ end)
 
 toggles.FireAura = VisualSection:AddToggle("FireAura", {Title = "Fire aura", Default = false})
 toggles.FireAura:OnChanged(function(val)
-    if val then VisualEffects:FireAura() else VisualEffects:ClearEffectByName("FireAura") end
+    if val then VisualEffects:FireAura() else VisualEffects:ClearEffectByName("Fire aura") end
 end)
 
 toggles.SmokeTrail = VisualSection:AddToggle("SmokeTrail", {Title = "Smoke trail", Default = false})
 toggles.SmokeTrail:OnChanged(function(val)
-    if val then VisualEffects:SmokeTrail() else VisualEffects:ClearEffectByName("SmokeTrail") end
+    if val then VisualEffects:SmokeTrail() else VisualEffects:ClearEffectByName("Smoke trail") end
 end)
 
 toggles.SparkleBody = VisualSection:AddToggle("SparkleBody", {Title = "Body sparkles", Default = false})
 toggles.SparkleBody:OnChanged(function(val)
-    if val then VisualEffects:SparkleBody() else VisualEffects:ClearEffectByName("BodySparkles") end
+    if val then VisualEffects:SparkleBody() else VisualEffects:ClearEffectByName("Body sparkles") end
 end)
 
 toggles.ColorShift = VisualSection:AddToggle("ColorShift", {Title = "Color shift", Default = false})
 toggles.ColorShift:OnChanged(function(val)
-    if val then VisualEffects:ColorShift() else VisualEffects:ClearEffectByName("ColorShift") end
+    if val then VisualEffects:ColorShift() else VisualEffects:ClearEffectByName("Color shift") end
 end)
 
 -- Settings theme dropdown
@@ -1571,7 +1719,7 @@ ClearSection:AddButton({
     Callback = function()
         EffectManager:ClearVisual()
         for name, toggle in pairs(toggles) do
-            if name ~= "Speed" and name ~= "Jump" and name ~= "InfiniteJump" and name ~= "Noclip" and name ~= "Fly" and name ~= "HighlightESP" and name ~= "NameESP" and name ~= "DistanceESP" and name ~= "Aimbot" and name ~= "Spinbot" then
+            if name ~= "Speed" and name ~= "Jump" and name ~= "InfiniteJump" and name ~= "Noclip" and name ~= "Fly" and name ~= "HighlightESP" and name ~= "NameESP" and name ~= "DistanceESP" and name ~= "Aimbot" and name ~= "Spinbot" and name ~= "TeamCheck" and name ~= "WallCheck" then
                 toggle:SetValue(false)
             end
         end
@@ -1584,7 +1732,7 @@ toggles.Speed:OnChanged(function(val)
     if val then
         if not speedConnection then
             speedConnection = RunService.Heartbeat:Connect(function()
-                local char = player.Character
+                local char = LocalPlayer.Character
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 if humanoid then
                     humanoid.WalkSpeed = CurrentWalkSpeed
@@ -1596,7 +1744,7 @@ toggles.Speed:OnChanged(function(val)
             speedConnection:Disconnect()
             speedConnection = nil
         end
-        local char = player.Character
+        local char = LocalPlayer.Character
         local humanoid = char and char:FindFirstChild("Humanoid")
         if humanoid then
             humanoid.WalkSpeed = OriginalWalkSpeed
@@ -1621,7 +1769,7 @@ toggles.Jump:OnChanged(function(val)
     if val then
         if not jumpConnection then
             jumpConnection = RunService.Heartbeat:Connect(function()
-                local char = player.Character
+                local char = LocalPlayer.Character
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 if humanoid then
                     humanoid.UseJumpPower = true
@@ -1634,7 +1782,7 @@ toggles.Jump:OnChanged(function(val)
             jumpConnection:Disconnect()
             jumpConnection = nil
         end
-        local char = player.Character
+        local char = LocalPlayer.Character
         local humanoid = char and char:FindFirstChild("Humanoid")
         if humanoid then
             humanoid.UseJumpPower = OriginalUseJumpPower
@@ -1670,8 +1818,8 @@ toggles.Noclip:OnChanged(function(val)
     if val then
         if not noclipConnection then
             noclipConnection = RunService.Stepped:Connect(function()
-                if NoclipEnabled and player.Character then
-                    for _, part in pairs(player.Character:GetDescendants()) do
+                if NoclipEnabled and LocalPlayer.Character then
+                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                         if part:IsA("BasePart") and part.CanCollide then
                             part.CanCollide = false
                         end
@@ -1684,8 +1832,8 @@ toggles.Noclip:OnChanged(function(val)
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        if player.Character then
-            for _, part in pairs(player.Character:GetDescendants()) do
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = true
                 end
@@ -1701,7 +1849,7 @@ toggles.Fly:OnChanged(function(val)
         if not flyConnection then
             flyConnection = RunService.Heartbeat:Connect(function()
                 if not FlyEnabled then return end
-                local char = player.Character
+                local char = LocalPlayer.Character
                 if not char then return end
                 local root = char:FindFirstChild("HumanoidRootPart")
                 if not root then return end
@@ -1754,8 +1902,8 @@ local FlySpeedSlider = PlayerSection:AddSlider("FlySpeedSlider", {
 
 -- Infinite Jump handler
 UserInputService.JumpRequest:Connect(function()
-    if InfiniteJumpEnabled and player.Character then
-        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+    if InfiniteJumpEnabled and LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
             pcall(function() humanoid:ChangeState("Jumping") end)
         end
@@ -1768,31 +1916,10 @@ Window:OnClose(function()
 end)
 
 -- Cleanup on player leaving
-game:GetService("Players").PlayerRemoving:Connect(function(leavingPlayer)
-    if leavingPlayer == player then
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == LocalPlayer then
         CleanupAll()
     else
-        if espPlayers[leavingPlayer] then
-            if espPlayers[leavingPlayer].Highlight then
-                pcall(function() espPlayers[leavingPlayer].Highlight:Destroy() end)
-            end
-            espPlayers[leavingPlayer] = nil
-        end
-        if nameEspPlayers[leavingPlayer] then
-            if nameEspPlayers[leavingPlayer].BillboardGui then
-                pcall(function() nameEspPlayers[leavingPlayer].BillboardGui:Destroy() end)
-            end
-            nameEspPlayers[leavingPlayer] = nil
-        end
-        if distanceEspPlayers[leavingPlayer] then
-            if distanceEspPlayers[leavingPlayer].BillboardGui then
-                pcall(function() distanceEspPlayers[leavingPlayer].BillboardGui:Destroy() end)
-            end
-            if distanceEspPlayers[leavingPlayer].Connection then
-                pcall(function() distanceEspPlayers[leavingPlayer].Connection:Disconnect() end)
-            end
-            distanceEspPlayers[leavingPlayer] = nil
-        end
         if lockedTarget == leavingPlayer then
             lockedTarget = nil
         end
