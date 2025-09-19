@@ -1,26 +1,23 @@
--- Load Fluent-Renewed library
+-- Load Fluent library
 local function LoadFluent()
     local success, result = pcall(function()
-        return loadstring(game:HttpGet("https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau"))()
+        return loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua", true))()
     end)
     if not success or not result then
-        error("Failed to load Fluent-Renewed library: " .. (result or "Unknown error"))
+        error("Failed to load Fluent library: " .. (result or "Unknown error"))
     end
     return result
 end
 local Fluent = LoadFluent()
-
--- Load addons
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau"))()
+Fluent.Notify = function() end -- Disable all Fluent notifications
 
 -- Create main window
 local Window = Fluent:CreateWindow({
     Title = "PrismaticaX 1.5",
     SubTitle = "By @zood3llotgk",
     TabWidth = 160,
-    Size = UDim2.fromOffset(580, 450),
-    Acrylic = true,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.Insert
 })
@@ -38,139 +35,10 @@ local Tabs = {
 
 -- Services
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
-local plr = LocalPlayer
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
-
--- Autofarm settings
-local runningAutofarm = false
-local runningUpgrade = false
-local runningNextRagdoll = false
-local runningRefine = false
-local slamDuration = 20
-local slamVelocity = 100
-
--- Freeze/unfreeze
-local function SetFrozen(char, state)
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.Anchored = state end
-end
-
--- Safe teleport character
-local function SafeTeleport(char, cframeAbove)
-    local parts = {}
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            parts[#parts+1] = part
-            part.Anchored = true
-            part.AssemblyLinearVelocity = Vector3.new()
-            part.AssemblyAngularVelocity = Vector3.new()
-        end
-    end
-
-    for _, part in pairs(parts) do
-        part.CFrame = cframeAbove + Vector3.new(math.random(-1,1), 0, math.random(-1,1))
-    end
-
-    task.wait(0.3)
-
-    for _, part in pairs(parts) do
-        part.Anchored = false
-    end
-end
-
--- Fire ragdoll
-local function FireRagdollTouch()
-    local char = plr.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local ragdollPart = workspace:FindFirstChild("RagdollParts") and workspace.RagdollParts:FindFirstChild("RagdollCollission")
-    if hrp and ragdollPart then
-        local touchInterest = ragdollPart:FindFirstChildOfClass("TouchTransmitter")
-        if touchInterest then
-            firetouchinterest(hrp, ragdollPart, 0)
-            task.wait()
-            firetouchinterest(hrp, ragdollPart, 1)
-        end
-    end
-end
-
--- Autofarm loop
-local function AutofarmLoop()
-    while runningAutofarm do
-        local char = plr.Character
-        if not char then
-            task.wait(1)
-        else
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local head = char:FindFirstChild("Head")
-            local spawnFolder = workspace:FindFirstChild("Spawn")
-            if hrp and head and spawnFolder then
-                local targetPart = workspace:GetChildren()[50]
-                local teleportTarget = spawnFolder:GetChildren()[84]
-                if targetPart and teleportTarget then
-                    FireRagdollTouch()
-                    local startTime = tick()
-                    while tick()-startTime < slamDuration and runningAutofarm do
-                        if not (hrp and head and targetPart) then break end
-                        local direction = (targetPart.Position - hrp.Position).Unit
-                        local velocity = direction * slamVelocity
-                        for _, partName in pairs({"HumanoidRootPart","Head","Torso","Left Arm","Right Arm","Left Leg","Right Leg"}) do
-                            local part = char:FindFirstChild(partName)
-                            if part then
-                                part.AssemblyLinearVelocity = velocity + Vector3.new(0,15,0)
-                            end
-                        end
-                        task.wait(0.15)
-                    end
-                    SetFrozen(char,true)
-                    SafeTeleport(char, teleportTarget.CFrame + Vector3.new(0,10,0))
-                    SetFrozen(char,false)
-                    local oldChar = char
-                    repeat task.wait(0.5) until not runningAutofarm or (plr.Character ~= oldChar and plr.Character:FindFirstChild("HumanoidRootPart"))
-                    if not runningAutofarm then return end
-                    task.wait(1)
-                    FireRagdollTouch()
-                else
-                    task.wait(1)
-                end
-            else
-                task.wait(1)
-            end
-        end
-    end
-end
-
--- Auto upgrade
-local function AutoUpgradeLoop()
-    while runningUpgrade do
-        Remotes.PurchaseBoneUpgrade:FireServer("Head")
-        Remotes.PurchaseBoneUpgrade:FireServer("Torso")
-        Remotes.PurchaseBoneUpgrade:FireServer("Arm")
-        Remotes.PurchaseBoneUpgrade:FireServer("Leg")
-        task.wait(0.2)
-    end
-end
-
--- Auto next ragdoll
-local function AutoNextRagdollLoop()
-    while runningNextRagdoll do
-        Remotes.PurchaseNextRagdoll:FireServer()
-        task.wait(0.5)
-    end
-end
-
--- Auto refine
-local function AutoRefineLoop()
-    while runningRefine do
-        Remotes.RefineRagdoll:FireServer()
-        task.wait(0.5)
-    end
-end
 
 -- Centralized effect management for JumpEffect only
 local EffectManager = {
@@ -180,10 +48,12 @@ local EffectManager = {
     Active = {}
 }
 
+-- Register effect with enable and disable functions
 function EffectManager:RegisterEffect(name, enableFunc, disableFunc)
     self.Effects[name] = { Enable = enableFunc, Disable = disableFunc }
 end
 
+-- Enable effect
 function EffectManager:EnableEffect(name)
     if self.Effects[name] and not self.Active[name] then
         pcall(function()
@@ -193,6 +63,7 @@ function EffectManager:EnableEffect(name)
     end
 end
 
+-- Disable effect
 function EffectManager:DisableEffect(name)
     if self.Effects[name] and self.Active[name] then
         pcall(function()
@@ -202,6 +73,7 @@ function EffectManager:DisableEffect(name)
     end
 end
 
+-- Clear only remaining effects
 function EffectManager:ClearVisual()
     for name, _ in pairs(self.Active) do
         self:DisableEffect(name)
@@ -217,7 +89,7 @@ function EffectManager:ClearVisual()
     self.Active = {}
 end
 
--- Rainbow color function
+-- Rainbow color function using HSV for smoother transitions
 local function RainbowColor(time)
     local hue = (time * 0.3) % 1
     return Color3.fromHSV(hue, 1, 1)
@@ -305,7 +177,6 @@ local flyConnection
 local noclipConnection
 local speedConnection
 local jumpConnection
-local infiniteJumpConnection
 local trails = {}
 local trailsCharConn
 local particleEmitter
@@ -313,12 +184,7 @@ local particlesCharConn
 local chinaHat
 local chinaHatConn
 local starTrailEmitter
-local neonGlowConn
 local starTrailConn
-local fireAuraConn
-local smokeTrailConn
-local sparkleBodyConn
-local colorShiftConn
 local aimbotEnabled = false
 local aimbotFOV = 100
 local aimbotConnection
@@ -332,7 +198,9 @@ local SpinbotEnabled = false
 local SpinbotSpeed = 10
 local spinbotConnection
 local TeamCheckEnabled = false
+local teamCheckConnection
 local WallCheckEnabled = false
+local wallCheckConnection
 local espTextSize = 25
 local espColor = Color3.fromRGB(255, 255, 255)
 local espRed = 255
@@ -492,7 +360,7 @@ end)
 local VisualEffects = {}
 
 function VisualEffects:FireAura()
-    self:ClearEffectByName("FireAura")
+    self:ClearEffectByName("Fire aura")
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
@@ -507,7 +375,7 @@ function VisualEffects:FireAura()
 end
 
 function VisualEffects:SmokeTrail()
-    self:ClearEffectByName("SmokeTrail")
+    self:ClearEffectByName("Smoke trail")
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
@@ -522,7 +390,7 @@ function VisualEffects:SmokeTrail()
 end
 
 function VisualEffects:SparkleBody()
-    self:ClearEffectByName("BodySparkles")
+    self:ClearEffectByName("Body sparkles")
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
@@ -534,7 +402,7 @@ function VisualEffects:SparkleBody()
 end
 
 function VisualEffects:ColorShift()
-    self:ClearEffectByName("ColorShift")
+    self:ClearEffectByName("Color shift")
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     if not char then return end
     
@@ -558,7 +426,7 @@ function VisualEffects:ColorShift()
 end
 
 function VisualEffects:NeonGlow()
-    self:ClearEffectByName("NeonGlow")
+    self:ClearEffectByName("Neon glow")
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     if not char then return end
     
@@ -579,7 +447,7 @@ function VisualEffects:NeonGlow()
 end
 
 function VisualEffects:StarTrail()
-    self:ClearEffectByName("StarTrail")
+    self:ClearEffectByName("Star trail")
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local root = char:WaitForChild("HumanoidRootPart", 10)
     if not root then return end
@@ -620,7 +488,6 @@ end
 -- Highlight ESP Module
 local HighlightESP = {}
 local highlightESPConnection
-local highlightESPCharacterConns = {}
 
 function HighlightESP:CreateHighlight(player)
     local character = player.Character
@@ -644,11 +511,10 @@ function HighlightESP:EnableESP()
 
     local function SetupHighlight(player)
         if player ~= LocalPlayer then
-            local charConn = player.CharacterAdded:Connect(function(character)
+            player.CharacterAdded:Connect(function(character)
                 task.wait(0.5)
                 HighlightESP:CreateHighlight(player)
             end)
-            table.insert(highlightESPCharacterConns, charConn)
             if player.Character then
                 HighlightESP:CreateHighlight(player)
             end
@@ -667,10 +533,6 @@ function HighlightESP:DisableESP()
         pcall(function() highlightESPConnection:Disconnect() end)
         highlightESPConnection = nil
     end
-    for _, conn in pairs(highlightESPCharacterConns) do
-        pcall(function() conn:Disconnect() end)
-    end
-    highlightESPCharacterConns = {}
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChild("ESPHighlight")
@@ -684,7 +546,6 @@ end
 -- Name ESP Module
 local NameESP = {}
 local nameESPConnection
-local nameESPCharacterConns = {}
 
 function NameESP:CreateNameTag(player)
     local character = player.Character
@@ -721,11 +582,10 @@ function NameESP:EnableESP()
 
     local function SetupName(player)
         if player ~= LocalPlayer then
-            local charConn = player.CharacterAdded:Connect(function(character)
+            player.CharacterAdded:Connect(function(character)
                 task.wait(0.5)
                 NameESP:CreateNameTag(player)
             end)
-            table.insert(nameESPCharacterConns, charConn)
             if player.Character then
                 NameESP:CreateNameTag(player)
             end
@@ -744,10 +604,6 @@ function NameESP:DisableESP()
         pcall(function() nameESPConnection:Disconnect() end)
         nameESPConnection = nil
     end
-    for _, conn in pairs(nameESPCharacterConns) do
-        pcall(function() conn:Disconnect() end)
-    end
-    nameESPCharacterConns = {}
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character and player.Character:FindFirstChild("Head") then
             local nameTag = player.Character.Head:FindFirstChild("NameTag")
@@ -761,8 +617,6 @@ end
 -- Distance ESP Module
 local DistanceESP = {}
 local distanceESPConnection
-local distanceESPCharacterConns = {}
-local distanceUpdateConn
 
 function DistanceESP:CreateDistanceTag(player)
     local character = player.Character
@@ -807,11 +661,10 @@ function DistanceESP:EnableESP()
 
     local function SetupDistance(player)
         if player ~= LocalPlayer then
-            local charConn = player.CharacterAdded:Connect(function(character)
+            player.CharacterAdded:Connect(function(character)
                 task.wait(0.5)
                 DistanceESP:CreateDistanceTag(player)
             end)
-            table.insert(distanceESPCharacterConns, charConn)
             if player.Character then
                 DistanceESP:CreateDistanceTag(player)
             end
@@ -824,7 +677,12 @@ function DistanceESP:EnableESP()
 
     distanceESPConnection = Players.PlayerAdded:Connect(SetupDistance)
 
-    distanceUpdateConn = RunService.Heartbeat:Connect(function()
+    local updateConnection
+    updateConnection = RunService.Heartbeat:Connect(function()
+        if not distanceESPConnection then
+            updateConnection:Disconnect()
+            return
+        end
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
                 DistanceESP:UpdateDistanceTag(player)
@@ -837,14 +695,6 @@ function DistanceESP:DisableESP()
     if distanceESPConnection then
         pcall(function() distanceESPConnection:Disconnect() end)
         distanceESPConnection = nil
-    end
-    for _, conn in pairs(distanceESPCharacterConns) do
-        pcall(function() conn:Disconnect() end)
-    end
-    distanceESPCharacterConns = {}
-    if distanceUpdateConn then
-        pcall(function() distanceUpdateConn:Disconnect() end)
-        distanceUpdateConn = nil
     end
     for _, player in pairs(Players:GetPlayers()) do
         if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -944,21 +794,12 @@ function Aimbot:Enable()
             lockedTarget = nil
         end
         
-        if lockedTarget and lockedTarget.Character then
-            local targetHead = lockedTarget.Character:FindFirstChild("Head")
-            if targetHead and (WallCheckEnabled or IsVisible(localRoot, targetHead)) then
-                camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
-            else
-                lockedTarget = nil
-            end
-        end
-        
         if not lockedTarget then
             local closestPlayer = nil
             local smallestAngle = math.rad(aimbotFOV / 2)
             
             for _, plr in pairs(Players:GetPlayers()) do
-                if plr ~= LocalPlayer and (not TeamCheckEnabled or not (plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team)) then
+                if plr ~= LocalPlayer then
                     local char = plr.Character
                     local root = char and char:FindFirstChild("HumanoidRootPart")
                     local head = char and char:FindFirstChild("Head")
@@ -966,7 +807,7 @@ function Aimbot:Enable()
                         local distance = (localRoot.Position - root.Position).Magnitude
                         if distance <= aimbotFOV then
                             local screenPoint, onScreen = camera:WorldToScreenPoint(head.Position)
-                            if onScreen and (WallCheckEnabled or IsVisible(localRoot, head)) then
+                            if onScreen then
                                 local directionToTarget = (head.Position - camera.CFrame.Position).Unit
                                 local cameraDirection = camera.CFrame.LookVector
                                 local angle = math.acos(directionToTarget:Dot(cameraDirection))
@@ -981,6 +822,15 @@ function Aimbot:Enable()
             end
             
             lockedTarget = closestPlayer
+        end
+        
+        if lockedTarget and lockedTarget.Character then
+            local targetHead = lockedTarget.Character:FindFirstChild("Head")
+            if targetHead then
+                camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
+            else
+                lockedTarget = nil
+            end
         end
     end)
 end
@@ -1021,6 +871,63 @@ function Spinbot:Disable()
     if spinbotConnection then
         pcall(function() spinbotConnection:Disconnect() end)
         spinbotConnection = nil
+    end
+end
+
+-- TeamCheck Module
+local TeamCheck = {}
+
+function TeamCheck:Enable()
+    if teamCheckConnection then return end
+    
+    teamCheckConnection = RunService.RenderStepped:Connect(function()
+        if not TeamCheckEnabled then
+            if teamCheckConnection then
+                teamCheckConnection:Disconnect()
+                teamCheckConnection = nil
+            end
+            return
+        end
+        
+        local localChar = LocalPlayer.Character
+        if not localChar then return end
+        local localRoot = localChar:FindFirstChild("HumanoidRootPart")
+        if not localRoot then return end
+        
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Team and LocalPlayer.Team and plr.Team == LocalPlayer.Team then
+                local char = plr.Character
+                if char then
+                    local highlight = char:FindFirstChild("TeamCheckHighlight")
+                    if not highlight then
+                        highlight = Instance.new("Highlight")
+                        highlight.Name = "TeamCheckHighlight"
+                        highlight.Adornee = char
+                        highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                        highlight.FillTransparency = 0.7
+                        highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = char
+                    end
+                end
+            end
+        end
+    end)
+end
+
+function TeamCheck:Disable()
+    if teamCheckConnection then
+        pcall(function() teamCheckConnection:Disconnect() end)
+        teamCheckConnection = nil
+    end
+    for _, plr in pairs(Players:GetPlayers()) do
+        local char = plr.Character
+        if char then
+            local highlight = char:FindFirstChild("TeamCheckHighlight")
+            if highlight then
+                pcall(function() highlight:Destroy() end)
+            end
+        end
     end
 end
 
@@ -1088,25 +995,23 @@ function WallCheck:Disable()
     end
 end
 
--- Cleanup function
+-- Cleanup function to disable all features
 local function CleanupAll()
-    runningAutofarm = false
-    runningUpgrade = false
-    runningNextRagdoll = false
-    runningRefine = false
-    
+    -- Disable all visual effects
     EffectManager:ClearVisual()
-    VisualEffects:ClearEffectByName("FireAura")
-    VisualEffects:ClearEffectByName("SmokeTrail")
-    VisualEffects:ClearEffectByName("BodySparkles")
-    VisualEffects:ClearEffectByName("ColorShift")
-    VisualEffects:ClearEffectByName("NeonGlow")
-    VisualEffects:ClearEffectByName("StarTrail")
+    VisualEffects:ClearEffectByName("Fire aura")
+    VisualEffects:ClearEffectByName("Smoke trail")
+    VisualEffects:ClearEffectByName("Body sparkles")
+    VisualEffects:ClearEffectByName("Color shift")
+    VisualEffects:ClearEffectByName("Neon glow")
+    VisualEffects:ClearEffectByName("Star trail")
     
+    -- Disable all toggles
     for name, toggle in pairs(toggles) do
         toggle:SetValue(false)
     end
 
+    -- Disable connections
     if speedConnection then
         pcall(function() speedConnection:Disconnect() end)
         speedConnection = nil
@@ -1114,10 +1019,6 @@ local function CleanupAll()
     if jumpConnection then
         pcall(function() jumpConnection:Disconnect() end)
         jumpConnection = nil
-    end
-    if infiniteJumpConnection then
-        pcall(function() infiniteJumpConnection:Disconnect() end)
-        infiniteJumpConnection = nil
     end
     if noclipConnection then
         pcall(function() noclipConnection:Disconnect() end)
@@ -1143,29 +1044,9 @@ local function CleanupAll()
         pcall(function() chinaHatConn:Disconnect() end)
         chinaHatConn = nil
     end
-    if neonGlowConn then
-        pcall(function() neonGlowConn:Disconnect() end)
-        neonGlowConn = nil
-    end
     if starTrailConn then
         pcall(function() starTrailConn:Disconnect() end)
         starTrailConn = nil
-    end
-    if fireAuraConn then
-        pcall(function() fireAuraConn:Disconnect() end)
-        fireAuraConn = nil
-    end
-    if smokeTrailConn then
-        pcall(function() smokeTrailConn:Disconnect() end)
-        smokeTrailConn = nil
-    end
-    if sparkleBodyConn then
-        pcall(function() sparkleBodyConn:Disconnect() end)
-        sparkleBodyConn = nil
-    end
-    if colorShiftConn then
-        pcall(function() colorShiftConn:Disconnect() end)
-        colorShiftConn = nil
     end
     if rainbowConnection then
         pcall(function() rainbowConnection:Disconnect() end)
@@ -1174,6 +1055,10 @@ local function CleanupAll()
     if spinbotConnection then
         pcall(function() spinbotConnection:Disconnect() end)
         spinbotConnection = nil
+    end
+    if teamCheckConnection then
+        pcall(function() teamCheckConnection:Disconnect() end)
+        teamCheckConnection = nil
     end
     if wallCheckConnection then
         pcall(function() wallCheckConnection:Disconnect() end)
@@ -1184,6 +1069,7 @@ local function CleanupAll()
     end
     uiGradientConnections = {}
 
+    -- Clear objects
     if chinaHat then
         pcall(function() chinaHat:Destroy() end)
         chinaHat = nil
@@ -1199,22 +1085,26 @@ local function CleanupAll()
     trails = {}
     rainbow_updaters = {}
     
+    -- Disable ESP modules
     HighlightESP:DisableESP()
     NameESP:DisableESP()
     DistanceESP:DisableESP()
     
+    -- Disable Aimbot, Spinbot, TeamCheck, and WallCheck
     Aimbot:Disable()
     Aimbot:HideFOV()
     Spinbot:Disable()
+    TeamCheck:Disable()
     WallCheck:Disable()
     
+    -- Restore character properties
     local char = LocalPlayer.Character
     if char then
         local humanoid = char:FindFirstChild("Humanoid")
         if humanoid then
             humanoid.WalkSpeed = OriginalWalkSpeed
             humanoid.UseJumpPower = OriginalUseJumpPower
-            if humanoid.UseJumpPower then
+            if OriginalUseJumpPower then
                 humanoid.JumpPower = OriginalJumpPower
             else
                 humanoid.JumpHeight = OriginalJumpHeight
@@ -1224,12 +1114,13 @@ local function CleanupAll()
             if part:IsA("BasePart") then
                 part.CanCollide = true
             end
-            if part.Name == "FireAura" or part.Name == "SmokeTrail" or part.Name == "BodySparkles" or part.Name == "ColorShift" or part.Name == "RainbowTrail" or part.Name == "TrailAttachment0" or part.Name == "TrailAttachment1" or part.Name == "NeonGlow" or part.Name == "StarTrail" or part.Name == "WallCheckHighlight" then
+            if part.Name == "FireAura" or part.Name == "SmokeTrail" or part.Name == "BodySparkles" or part.Name == "ColorShift" or part.Name == "RainbowTrail" or part.Name == "TrailAttachment0" or part.Name == "TrailAttachment1" or part.Name == "NeonGlow" or part.Name == "StarTrail" or part.Name == "TeamCheckHighlight" or part.Name == "WallCheckHighlight" or part:IsA("ParticleEmitter") then
                 pcall(function() part:Destroy() end)
             end
         end
     end
     
+    -- Reset variables
     InfiniteJumpEnabled = false
     NoclipEnabled = false
     FlyEnabled = false
@@ -1255,18 +1146,7 @@ local SizeSection = Tabs.Wallhack:AddSection("Size")
 local SettingsColorESPSection = Tabs.Wallhack:AddSection("Settings color ESP")
 local CombatSection = Tabs.Combat:AddSection("Combat")
 local TrollSection = Tabs.Troll:AddSection("Troll")
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes{}
-
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/PrismaticaX")
-
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
+local SettingsSection = Tabs.Settings:AddSection("Settings")
 
 -- Troll GUI button
 TrollSection:AddButton({
@@ -1366,6 +1246,11 @@ CombatSection:AddSlider("SpinbotSpeed", {
 toggles.TeamCheck = CombatSection:AddToggle("TeamCheck", {Title = "Team check", Default = false})
 toggles.TeamCheck:OnChanged(function(val)
     TeamCheckEnabled = val
+    if val then
+        TeamCheck:Enable()
+    else
+        TeamCheck:Disable()
+    end
 end)
 
 toggles.WallCheck = CombatSection:AddToggle("WallCheck", {Title = "Wall check", Default = false})
@@ -1741,23 +1626,25 @@ end)
 toggles.NeonGlow = VisualSection:AddToggle("NeonGlow", {Title = "Neon glow", Default = false})
 toggles.NeonGlow:OnChanged(function(val)
     if val then
-        local function AddNeonGlow(newChar)
-            task.wait(1)
-            VisualEffects:NeonGlow()
-        end
+        VisualEffects:NeonGlow()
         local char = LocalPlayer.Character
         if char then
             VisualEffects:NeonGlow()
         end
-        if not neonGlowConn then
-            neonGlowConn = LocalPlayer.CharacterAdded:Connect(AddNeonGlow)
+        if not starTrailConn then
+            starTrailConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
+                if toggles.NeonGlow.Value then
+                    task.wait(1)
+                    VisualEffects:NeonGlow()
+                end
+            end)
         end
     else
-        if neonGlowConn then
-            neonGlowConn:Disconnect()
-            neonGlowConn = nil
+        if starTrailConn then
+            starTrailConn:Disconnect()
+            starTrailConn = nil
         end
-        VisualEffects:ClearEffectByName("NeonGlow")
+        VisualEffects:ClearEffectByName("Neon glow")
         rainbow_updaters["NeonGlow"] = nil
         StopRainbowLoop()
     end
@@ -1766,23 +1653,25 @@ end)
 toggles.StarTrail = VisualSection:AddToggle("StarTrail", {Title = "Star trail", Default = false})
 toggles.StarTrail:OnChanged(function(val)
     if val then
-        local function AddStarTrail(newChar)
-            task.wait(1)
-            VisualEffects:StarTrail()
-        end
+        VisualEffects:StarTrail()
         local char = LocalPlayer.Character
         if char then
             VisualEffects:StarTrail()
         end
         if not starTrailConn then
-            starTrailConn = LocalPlayer.CharacterAdded:Connect(AddStarTrail)
+            starTrailConn = LocalPlayer.CharacterAdded:Connect(function(newChar)
+                if toggles.StarTrail.Value then
+                    task.wait(1)
+                    VisualEffects:StarTrail()
+                end
+            end)
         end
     else
         if starTrailConn then
             starTrailConn:Disconnect()
             starTrailConn = nil
         end
-        VisualEffects:ClearEffectByName("StarTrail")
+        VisualEffects:ClearEffectByName("Star trail")
         if starTrailEmitter then
             pcall(function() starTrailEmitter:Destroy() end)
             starTrailEmitter = nil
@@ -1794,95 +1683,34 @@ end)
 
 toggles.FireAura = VisualSection:AddToggle("FireAura", {Title = "Fire aura", Default = false})
 toggles.FireAura:OnChanged(function(val)
-    if val then
-        local function AddFireAura(newChar)
-            task.wait(1)
-            VisualEffects:FireAura()
-        end
-        local char = LocalPlayer.Character
-        if char then
-            VisualEffects:FireAura()
-        end
-        if not fireAuraConn then
-            fireAuraConn = LocalPlayer.CharacterAdded:Connect(AddFireAura)
-        end
-    else
-        if fireAuraConn then
-            fireAuraConn:Disconnect()
-            fireAuraConn = nil
-        end
-        VisualEffects:ClearEffectByName("FireAura")
-    end
+    if val then VisualEffects:FireAura() else VisualEffects:ClearEffectByName("Fire aura") end
 end)
 
 toggles.SmokeTrail = VisualSection:AddToggle("SmokeTrail", {Title = "Smoke trail", Default = false})
 toggles.SmokeTrail:OnChanged(function(val)
-    if val then
-        local function AddSmokeTrail(newChar)
-            task.wait(1)
-            VisualEffects:SmokeTrail()
-        end
-        local char = LocalPlayer.Character
-        if char then
-            VisualEffects:SmokeTrail()
-        end
-        if not smokeTrailConn then
-            smokeTrailConn = LocalPlayer.CharacterAdded:Connect(AddSmokeTrail)
-        end
-    else
-        if smokeTrailConn then
-            smokeTrailConn:Disconnect()
-            smokeTrailConn = nil
-        end
-        VisualEffects:ClearEffectByName("SmokeTrail")
-    end
+    if val then VisualEffects:SmokeTrail() else VisualEffects:ClearEffectByName("Smoke trail") end
 end)
 
 toggles.SparkleBody = VisualSection:AddToggle("SparkleBody", {Title = "Body sparkles", Default = false})
 toggles.SparkleBody:OnChanged(function(val)
-    if val then
-        local function AddSparkleBody(newChar)
-            task.wait(1)
-            VisualEffects:SparkleBody()
-        end
-        local char = LocalPlayer.Character
-        if char then
-            VisualEffects:SparkleBody()
-        end
-        if not sparkleBodyConn then
-            sparkleBodyConn = LocalPlayer.CharacterAdded:Connect(AddSparkleBody)
-        end
-    else
-        if sparkleBodyConn then
-            sparkleBodyConn:Disconnect()
-            sparkleBodyConn = nil
-        end
-        VisualEffects:ClearEffectByName("BodySparkles")
-    end
+    if val then VisualEffects:SparkleBody() else VisualEffects:ClearEffectByName("Body sparkles") end
 end)
 
 toggles.ColorShift = VisualSection:AddToggle("ColorShift", {Title = "Color shift", Default = false})
 toggles.ColorShift:OnChanged(function(val)
-    if val then
-        local function AddColorShift(newChar)
-            task.wait(1)
-            VisualEffects:ColorShift()
-        end
-        local char = LocalPlayer.Character
-        if char then
-            VisualEffects:ColorShift()
-        end
-        if not colorShiftConn then
-            colorShiftConn = LocalPlayer.CharacterAdded:Connect(AddColorShift)
-        end
-    else
-        if colorShiftConn then
-            colorShiftConn:Disconnect()
-            colorShiftConn = nil
-        end
-        VisualEffects:ClearEffectByName("ColorShift")
-    end
+    if val then VisualEffects:ColorShift() else VisualEffects:ClearEffectByName("Color shift") end
 end)
+
+-- Settings theme dropdown
+SettingsSection:AddDropdown("Theme", {
+    Title = "Interface theme",
+    Description = "Select UI theme",
+    Values = {"Dark", "Light", "Aqua", "Darker", "Amethyst", "Rose"},
+    Default = "Dark",
+    Callback = function(val)
+        Fluent:SetTheme(val)
+    end
+})
 
 -- Clear button
 ClearSection:AddButton({
@@ -1913,7 +1741,7 @@ toggles.Speed:OnChanged(function(val)
         end
     else
         if speedConnection then
-            pcall(function() speedConnection:Disconnect() end)
+            speedConnection:Disconnect()
             speedConnection = nil
         end
         local char = LocalPlayer.Character
@@ -1924,7 +1752,7 @@ toggles.Speed:OnChanged(function(val)
     end
 end)
 
-PlayerSection:AddSlider("SpeedSlider", {
+local SpeedSlider = PlayerSection:AddSlider("SpeedSlider", {
     Title = "Speed changer",
     Description = "Set walk speed (16-100)",
     Default = 16,
@@ -1944,23 +1772,21 @@ toggles.Jump:OnChanged(function(val)
                 local char = LocalPlayer.Character
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 if humanoid then
-                    if humanoid.UseJumpPower then
-                        humanoid.JumpPower = CurrentJumpPower
-                    else
-                        humanoid.JumpHeight = CurrentJumpPower / 7
-                    end
+                    humanoid.UseJumpPower = true
+                    humanoid.JumpPower = CurrentJumpPower
                 end
             end)
         end
     else
         if jumpConnection then
-            pcall(function() jumpConnection:Disconnect() end)
+            jumpConnection:Disconnect()
             jumpConnection = nil
         end
         local char = LocalPlayer.Character
         local humanoid = char and char:FindFirstChild("Humanoid")
         if humanoid then
-            if humanoid.UseJumpPower then
+            humanoid.UseJumpPower = OriginalUseJumpPower
+            if OriginalUseJumpPower then
                 humanoid.JumpPower = OriginalJumpPower
             else
                 humanoid.JumpHeight = OriginalJumpHeight
@@ -1969,48 +1795,21 @@ toggles.Jump:OnChanged(function(val)
     end
 end)
 
-PlayerSection:AddSlider("JumpPowerSlider", {
-    Title = "Jump Power",
-    Description = "Set jump power (50-200)",
+local JumpSlider = PlayerSection:AddSlider("JumpSlider", {
+    Title = "Jump changer",
+    Description = "Set jump power (50-100)",
     Default = 50,
     Min = 50,
-    Max = 200,
+    Max = 100,
     Rounding = 0,
     Callback = function(val)
         CurrentJumpPower = val
-        local char = LocalPlayer.Character
-        local humanoid = char and char:FindFirstChild("Humanoid")
-        if humanoid and toggles.Jump.Value then
-            if humanoid.UseJumpPower then
-                humanoid.JumpPower = CurrentJumpPower
-            else
-                humanoid.JumpHeight = CurrentJumpPower / 7
-            end
-        end
     end
 })
 
-toggles.InfiniteJump = PlayerSection:AddToggle("InfiniteJump", {Title = "Infinite Jump", Default = false})
+toggles.InfiniteJump = PlayerSection:AddToggle("InfiniteJump", {Title = "Infinite jump", Default = false})
 toggles.InfiniteJump:OnChanged(function(val)
     InfiniteJumpEnabled = val
-    if val then
-        if not infiniteJumpConnection then
-            infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
-                if InfiniteJumpEnabled then
-                    local char = LocalPlayer.Character
-                    local humanoid = char and char:FindFirstChild("Humanoid")
-                    if humanoid then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    end
-                end
-            end)
-        end
-    else
-        if infiniteJumpConnection then
-            pcall(function() infiniteJumpConnection:Disconnect() end)
-            infiniteJumpConnection = nil
-        end
-    end
 end)
 
 toggles.Noclip = PlayerSection:AddToggle("Noclip", {Title = "Noclip", Default = false})
@@ -2019,10 +1818,9 @@ toggles.Noclip:OnChanged(function(val)
     if val then
         if not noclipConnection then
             noclipConnection = RunService.Stepped:Connect(function()
-                local char = LocalPlayer.Character
-                if char and NoclipEnabled then
-                    for _, part in pairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then
+                if NoclipEnabled and LocalPlayer.Character then
+                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part.CanCollide then
                             part.CanCollide = false
                         end
                     end
@@ -2031,12 +1829,11 @@ toggles.Noclip:OnChanged(function(val)
         end
     else
         if noclipConnection then
-            pcall(function() noclipConnection:Disconnect() end)
+            noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = true
                 end
@@ -2049,57 +1846,39 @@ toggles.Fly = PlayerSection:AddToggle("Fly", {Title = "Fly", Default = false})
 toggles.Fly:OnChanged(function(val)
     FlyEnabled = val
     if val then
-        local char = LocalPlayer.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        if root then
-            if flyBodyVelocity then
-                pcall(function() flyBodyVelocity:Destroy() end)
-            end
-            flyBodyVelocity = Instance.new("BodyVelocity")
-            flyBodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-            flyBodyVelocity.Parent = root
-
-            if not flyConnection then
-                flyConnection = RunService.RenderStepped:Connect(function()
-                    local camera = Workspace.CurrentCamera
-                    local moveDirection = Vector3.new()
-                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                        moveDirection = moveDirection + camera.CFrame.LookVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                        moveDirection = moveDirection - camera.CFrame.LookVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                        moveDirection = moveDirection + camera.CFrame.RightVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                        moveDirection = moveDirection - camera.CFrame.RightVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                        moveDirection = moveDirection + Vector3.new(0, 1, 0)
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                        moveDirection = moveDirection - Vector3.new(0, 1, 0)
-                    end
-                    if FlyEnabled and flyBodyVelocity and flyBodyVelocity.Parent then
-                        flyBodyVelocity.Velocity = moveDirection.Unit * FlySpeed
-                    else
-                        if flyConnection then
-                            flyConnection:Disconnect()
-                            flyConnection = nil
-                        end
-                        if flyBodyVelocity then
-                            pcall(function() flyBodyVelocity:Destroy() end)
-                            flyBodyVelocity = nil
-                        end
-                    end
-                end)
-            end
+        if not flyConnection then
+            flyConnection = RunService.Heartbeat:Connect(function()
+                if not FlyEnabled then return end
+                local char = LocalPlayer.Character
+                if not char then return end
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+                if not flyBodyVelocity or not flyBodyVelocity.Parent then
+                    flyBodyVelocity = Instance.new("BodyVelocity")
+                    flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                    flyBodyVelocity.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+                    flyBodyVelocity.Parent = root
+                end
+                local camera = workspace.CurrentCamera
+                local direction = Vector3.new()
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    direction = direction + camera.CFrame.LookVector * FlySpeed
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    direction = direction - camera.CFrame.LookVector * FlySpeed
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    direction = direction - camera.CFrame.RightVector * FlySpeed
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    direction = direction + camera.CFrame.RightVector * FlySpeed
+                end
+                flyBodyVelocity.Velocity = direction
+            end)
         end
     else
         if flyConnection then
-            pcall(function() flyConnection:Disconnect() end)
+            flyConnection:Disconnect()
             flyConnection = nil
         end
         if flyBodyVelocity then
@@ -2109,60 +1888,43 @@ toggles.Fly:OnChanged(function(val)
     end
 end)
 
-PlayerSection:AddSlider("FlySpeed", {
+local FlySpeedSlider = PlayerSection:AddSlider("FlySpeedSlider", {
     Title = "Fly speed",
-    Description = "Set fly speed (50-200)",
+    Description = "Set fly speed (1-100)",
     Default = 50,
-    Min = 50,
-    Max = 200,
+    Min = 1,
+    Max = 100,
     Rounding = 0,
     Callback = function(val)
         FlySpeed = val
     end
 })
 
--- Autofarm toggles
-local AutofarmSection = Tabs.Utilities:AddSection("Autofarm")
-
-toggles.AutoFarm = AutofarmSection:AddToggle("AutoFarm", {Title = "Auto farm", Default = false})
-toggles.AutoFarm:OnChanged(function(val)
-    runningAutofarm = val
-    if val then
-        task.spawn(AutofarmLoop)
+-- Infinite Jump handler
+UserInputService.JumpRequest:Connect(function()
+    if InfiniteJumpEnabled and LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            pcall(function() humanoid:ChangeState("Jumping") end)
+        end
     end
 end)
 
-toggles.AutoUpgrade = AutofarmSection:AddToggle("AutoUpgrade", {Title = "Auto upgrade", Default = false})
-toggles.AutoUpgrade:OnChanged(function(val)
-    runningUpgrade = val
-    if val then
-        task.spawn(AutoUpgradeLoop)
-    end
+-- Handle window close to cleanup all features
+Window:OnClose(function()
+    CleanupAll()
 end)
 
-toggles.AutoNextRagdoll = AutofarmSection:AddToggle("AutoNextRagdoll", {Title = "Auto next ragdoll", Default = false})
-toggles.AutoNextRagdoll:OnChanged(function(val)
-    runningNextRagdoll = val
-    if val then
-        task.spawn(AutoNextRagdollLoop)
-    end
-end)
-
-toggles.AutoRefine = AutofarmSection:AddToggle("AutoRefine", {Title = "Auto refine", Default = false})
-toggles.AutoRefine:OnChanged(function(val)
-    runningRefine = val
-    if val then
-        task.spawn(AutoRefineLoop)
-    end
-end)
-
--- Cleanup on player removal
-Players.PlayerRemoving:Connect(function(player)
-    if player == LocalPlayer then
+-- Cleanup on player leaving
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == LocalPlayer then
         CleanupAll()
+    else
+        if lockedTarget == leavingPlayer then
+            lockedTarget = nil
+        end
     end
 end)
 
--- Initialize UI
+-- Initial setup
 Window:SelectTab(1)
-SaveManager:LoadAutoloadConfig()
